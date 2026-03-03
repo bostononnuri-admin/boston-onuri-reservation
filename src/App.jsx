@@ -3,9 +3,9 @@ import { useState, useMemo, useEffect } from "react";
 // ══════════════════════════════════════════════════════════════════
 //  ★★★ 여기에 Google Apps Script URL을 입력하세요 ★★★
 //  Apps Script 배포 후 생성된 URL을 아래 따옴표 안에 붙여넣기
-//  예: const GAS_URL = "https://script.google.com/macros/s/AKfycbz21agW9jXczsPdeuBTnyB9Vp3UNNcu0eukwFvwUQjjudW9_V_dTHYapXLP4FH8iw2p/exec";
+//  예: const GAS_URL = "https://script.google.com/macros/s/XXXXX/exec";
 // ══════════════════════════════════════════════════════════════════
-const GAS_URL = "여기에_URL_붙여넣기";
+const GAS_URL = "https://script.google.com/macros/s/AKfycbz21agW9jXczsPdeuBTnyB9Vp3UNNcu0eukwFvwUQjjudW9_V_dTHYapXLP4FH8iw2p/exec";
 
 const OVERLAP_ALLOWED = [9, 10];
 const SPACES = [
