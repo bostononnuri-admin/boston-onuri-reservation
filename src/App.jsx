@@ -32,8 +32,8 @@ const SPACES = [
   { id: 4,  name: "비전홀",          icon: "🎓"  },
   { id: 5,  name: "드림홀",          icon: "🧒🏻" },
   { id: 6,  name: "기도실",          icon: "🙏🏻" },
-  { id: 7,  name: "두란노홀-Table1", icon: "img:/table-icon.png" },
-  { id: 8,  name: "두란노홀-Table2", icon: "img:/table-icon.png" },
+  { id: 7,  name: "두란노홀-Table1", icon: "img:/table-icon.svg" },
+  { id: 8,  name: "두란노홀-Table2", icon: "img:/table-icon.svg" },
   { id: 9,  name: "주방",            icon: "🍳"  },
   { id: 10, name: "2층",             icon: "🏠"  },
 ];
