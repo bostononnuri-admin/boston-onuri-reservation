@@ -15,6 +15,8 @@ const WORSHIP_START  = "08:00";
 const WORSHIP_END    = "13:00";
 const DREAMHALL_ID   = 5;
 const DREAMHALL_END  = "13:00";
+const ACTS29_ID      = 3;
+const ACTS29_END     = "13:30";
 
 // 매주 토요일 예약 불가 (본당 — 성인예배팀 찬양 연습)
 const SAT_BLOCKED_SPACE = 1; // 본당
@@ -189,7 +191,9 @@ export default function App() {
   // 일요일 주일예배 시간 차단 여부
   const isWorshipDay      = selDate && localDate(selDate).getDay() === 0;
   const isWorshipBlocked  = selSpace && WORSHIP_BLOCKED_SPACES.includes(selSpace.id) && isWorshipDay;
-  const worshipEnd        = selSpace?.id === DREAMHALL_ID ? DREAMHALL_END : WORSHIP_END;
+  const worshipEnd        = selSpace?.id === ACTS29_ID ? ACTS29_END
+                          : selSpace?.id === DREAMHALL_ID ? DREAMHALL_END
+                          : WORSHIP_END;
   const isTimeInWorship   = t => t >= WORSHIP_START && t < worshipEnd;
 
   // 토요일 본당 찬양 연습 시간 차단 여부
@@ -358,7 +362,7 @@ export default function App() {
                         const isOverlapAllowed = OVERLAP_ALLOWED.includes(sp);
                         // 고정 차단 시간
                         const blocked =
-                          (WORSHIP_BLOCKED_SPACES.includes(sp) && dow===0 && t>=WORSHIP_START && t<(sp===DREAMHALL_ID?DREAMHALL_END:WORSHIP_END)) ||
+                          (WORSHIP_BLOCKED_SPACES.includes(sp) && dow===0 && t>=WORSHIP_START && t<(sp===ACTS29_ID?ACTS29_END:sp===DREAMHALL_ID?DREAMHALL_END:WORSHIP_END)) ||
                           (sp===SAT_BLOCKED_SPACE && dow===6 && t>=SAT_START && t<SAT_END) ||
                           (sp===WED_BLOCKED_SPACE && dow===3 && t>=WED_START && t<WED_END);
                         return <option key={t} value={t} disabled={blocked}>{toAMPM(t)}{blocked?" ●":""}</option>;
@@ -604,9 +608,11 @@ export default function App() {
                   {isWorshipBlocked&&(
                     <div style={{background:"#fff7ed",border:"1.5px solid #fb923c55",borderRadius:c.radiusSm,padding:"10px 14px",fontSize:13,color:"#c2410c"}}>
                       ⛪ <strong>주일예배 시간 예약 불가</strong><br/>
-                      {selSpace?.id === DREAMHALL_ID
-                        ? "매주 주일 8:00 AM – 1:00 PM 은 어린이부 예배가 있어 이 공간을 예약할 수 없습니다. 양해 부탁드립니다!"
-                        : "매주 주일 8:00 AM – 1:00 PM 은 이 공간을 예약할 수 없습니다. 양해 부탁드립니다!"
+                      {selSpace?.id === ACTS29_ID
+                        ? "매주 주일 8:00 AM – 1:30 PM 은 이 공간을 예약할 수 없습니다. 양해 부탁드립니다!"
+                        : selSpace?.id === DREAMHALL_ID
+                          ? "매주 주일 8:00 AM – 1:00 PM 은 어린이부 예배가 있어 이 공간을 예약할 수 없습니다. 양해 부탁드립니다!"
+                          : "매주 주일 8:00 AM – 1:00 PM 은 이 공간을 예약할 수 없습니다. 양해 부탁드립니다!"
                       }
                     </div>
                   )}
@@ -659,7 +665,7 @@ export default function App() {
                   </div>
                   {form.startTime&&form.endTime&&form.startTime>=form.endTime&&<div style={{fontSize:13,color:c.danger,background:c.dangerBg,borderRadius:c.radiusSm,padding:"8px 12px"}}>종료 시간은 시작 시간보다 늦어야 합니다</div>}
                   {overlapsWorship&&<div style={{fontSize:13,color:"#c2410c",background:"#fff7ed",borderRadius:c.radiusSm,padding:"8px 12px"}}>
-                    ⛪ 선택한 시간이 주일예배 시간(8:00 AM – 1:00 PM)과 겹칩니다
+                    ⛪ 선택한 시간이 주일예배 시간(8:00 AM – {selSpace?.id===ACTS29_ID?"1:30 PM":"1:00 PM"})과 겹칩니다
                   </div>}
                   {overlapsSat&&<div style={{fontSize:13,color:"#c2410c",background:"#fff7ed",borderRadius:c.radiusSm,padding:"8px 12px"}}>
                     🎵 선택한 시간이 찬양 연습 시간(9:00 AM – 12:00 PM)과 겹칩니다
