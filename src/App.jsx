@@ -412,20 +412,21 @@ export default function App() {
       <main style={{maxWidth:900,margin:"0 auto",padding:"20px 16px"}}>
 
         {loading&&(
-          <div style={{textAlign:"center",padding:"60px 20px",color:c.sub}}>
-            <div style={{fontSize:36,marginBottom:12}}>⏳</div>
-            <div style={{fontSize:17}}>예약 데이터를 불러오는 중...</div>
+          <div style={{background:c.chipBg,border:`1px solid ${c.primary}33`,borderRadius:c.radiusSm,padding:"10px 16px",marginBottom:14,display:"flex",alignItems:"center",gap:10,fontSize:13,color:c.primary}}>
+            <span style={{display:"inline-block",width:14,height:14,border:`2px solid ${c.primary}`,borderTopColor:"transparent",borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/>
+            예약 현황을 불러오는 중입니다...
+            <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
           </div>
         )}
 
-        {!isGasReady&&!loading&&(
+        {!isGasReady&&(
           <div style={{background:"#fffbeb",border:"1.5px solid #f59e0b55",borderRadius:c.radiusSm,padding:"12px 16px",marginBottom:20,fontSize:13,color:c.gold}}>
             ⚠️ <strong>설정 필요:</strong> App.jsx 파일의 <code>GAS_URL</code>에 Google Apps Script URL을 입력하고 재배포해주세요.
           </div>
         )}
 
         {/* Space selection */}
-        {!loading&&view==="home"&&!submitted&&!selSpace&&(
+        {view==="home"&&!submitted&&!selSpace&&(
           <div>
             <div style={{marginBottom:14}}>
               <h1 style={{fontSize:24,fontWeight:700,margin:"0 0 6px",color:c.text}}>장소 예약 신청</h1>
@@ -492,7 +493,10 @@ export default function App() {
                             }}>
                             <div>{day}</div>
                             {holiday&&<div style={{fontSize:7,lineHeight:1.1,color:isSel?"rgba(255,255,255,0.85)":dis?"#c7cbe8":c.SUN,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{holiday}</div>}
-                            {resCount>0&&<div style={{fontSize:10,fontWeight:700,color:isSel?"#fff":c.primary,marginTop:1}}>{resCount}건</div>}
+                            {loading
+                              ?<div style={{fontSize:10,color:c.light,marginTop:1}}>•</div>
+                              :resCount>0&&<div style={{fontSize:10,fontWeight:700,color:isSel?"#fff":c.primary,marginTop:1}}>{resCount}건</div>
+                            }
                           </button>
                         );
                       })}
@@ -543,7 +547,7 @@ export default function App() {
         )}
 
         {/* Book view — fully vertical */}
-        {!loading&&view==="book"&&selSpace&&!submitted&&(
+        {view==="book"&&selSpace&&!submitted&&(
           <div>
             <button onClick={()=>{setView("home");setSelSpace(null);setSelDate(null);}} style={{background:"none",border:"none",color:c.primary,cursor:"pointer",fontSize:15,padding:"0 0 16px"}}>← 장소 목록으로</button>
             <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20,padding:"14px 16px",background:c.chipBg,borderRadius:c.radius,border:`1.5px solid ${c.primary}44`}}>
@@ -591,7 +595,10 @@ export default function App() {
                     }}>
                       <div>{day}</div>
                       {holiday&&<div style={{fontSize:7,lineHeight:1.1,color:isSel?"rgba(255,255,255,0.85)":isTooFar?"#c7cbe8":c.SUN,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{holiday}</div>}
-                      {hasBk&&<div style={{fontSize:10,fontWeight:700,color:isSel?"#fff":isPastCal?c.sub:c.primary,marginTop:1}}>{spaceRes.filter(r=>r.date===ds).length}건</div>}
+                      {loading
+                        ?<div style={{fontSize:10,color:c.light,marginTop:1}}>•</div>
+                        :hasBk&&<div style={{fontSize:10,fontWeight:700,color:isSel?"#fff":isPastCal?c.sub:c.primary,marginTop:1}}>{spaceRes.filter(r=>r.date===ds).length}건</div>
+                      }
                     </button>
                   );
                 })}
