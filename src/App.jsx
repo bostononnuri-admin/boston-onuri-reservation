@@ -225,9 +225,10 @@ export default function App() {
     form.startTime < WED_END && form.endTime > WED_START;
 
   const isPwValid = form.password && /^\d{4}$/.test(form.password);
+  const isPastDate = selDate && selDate < todayStr;
   const canSubmit = form.name && isPhoneValid(form.phone) && form.purpose &&
     form.startTime && form.endTime && form.startTime < form.endTime &&
-    isPwValid && !overlapsWorship && !overlapsSat && !overlapsWed;
+    isPwValid && !overlapsWorship && !overlapsSat && !overlapsWed && !isPastDate;
 
   async function handleSubmit() {
     if (!canSubmit) return;
@@ -506,6 +507,7 @@ export default function App() {
                         <span style={{marginLeft:8,fontSize:13,fontWeight:500,color:c.sub}}>
                           {homeSelRes.length===0?"예약 없음":`총 ${homeSelRes.length}건`}
                         </span>
+                        {homeSelDate<todayStr&&<span style={{marginLeft:6,fontSize:11,background:"#f3f4f6",color:c.sub,borderRadius:5,padding:"2px 8px",fontWeight:600}}>지난 날짜 · 조회만 가능</span>}
                       </div>
                       {homeSelRes.length===0
                         ?<div style={{textAlign:"center",color:c.light,fontSize:14,padding:"20px 0"}}>이 날짜에는 예약이 없습니다</div>
@@ -526,7 +528,7 @@ export default function App() {
                                   </div>
                                   {r.purpose&&<div style={{fontSize:12,color:c.sub,marginTop:1}}>{r.purpose}</div>}
                                 </div>
-                                <button onClick={()=>openCancelModal(r.id)} style={{background:"none",border:`1px solid ${c.border}`,borderRadius:6,padding:"6px 10px",fontSize:12,cursor:"pointer",color:c.sub,fontFamily:"inherit",whiteSpace:"nowrap"}}>취소 / 변경</button>
+                                {homeSelDate>=todayStr&&<button onClick={()=>openCancelModal(r.id)} style={{background:"none",border:`1px solid ${c.border}`,borderRadius:6,padding:"6px 10px",fontSize:12,cursor:"pointer",color:c.sub,fontFamily:"inherit",whiteSpace:"nowrap"}}>취소 / 변경</button>}
                               </div>
                             );
                           })}
@@ -574,32 +576,39 @@ export default function App() {
                   const ds=`${calYear}-${m}-${d}`;
                   const dow=localDate(ds).getDay();
                   const isSel=selDate===ds, hasBk=bookedDates.includes(ds);
-                  const dis=ds<todayStr||ds>maxDateStr, isToday=ds===todayStr, holiday=holidays[ds];
+                  const isPastCal = ds < todayStr;
+                  const isTooFar  = ds > maxDateStr;
+                  const dis = isTooFar;
+                  const isToday=ds===todayStr, holiday=holidays[ds];
                   return (
                     <button key={day} disabled={dis} onClick={()=>setSelDate(ds)} style={{
                       padding:"6px 2px 4px",borderRadius:7,lineHeight:1.2,
                       border:isSel?`2px solid ${c.primary}`:isToday?`2px solid ${c.gold}`:"2px solid transparent",
                       background:isSel?c.primary:"transparent",
-                      color:getDayColor(ds,dow,isSel,dis),
+                      color:getDayColor(ds,dow,isSel,isTooFar),
                       fontSize:15,fontFamily:"inherit",cursor:dis?"default":"pointer",fontWeight:isToday?700:400,
+                      opacity:isPastCal?0.55:1,
                     }}>
                       <div>{day}</div>
-                      {holiday&&<div style={{fontSize:7,lineHeight:1.1,color:isSel?"rgba(255,255,255,0.85)":dis?"#c7cbe8":c.SUN,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{holiday}</div>}
-                      {hasBk&&!dis&&<div style={{fontSize:10,fontWeight:700,color:isSel?"#fff":c.primary,marginTop:1}}>{spaceRes.filter(r=>r.date===ds).length}건</div>}
+                      {holiday&&<div style={{fontSize:7,lineHeight:1.1,color:isSel?"rgba(255,255,255,0.85)":isTooFar?"#c7cbe8":c.SUN,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{holiday}</div>}
+                      {hasBk&&<div style={{fontSize:10,fontWeight:700,color:isSel?"#fff":isPastCal?c.sub:c.primary,marginTop:1}}>{spaceRes.filter(r=>r.date===ds).length}건</div>}
                     </button>
                   );
                 })}
               </div>
               {selDate&&(
                 <div style={{marginTop:16,paddingTop:14,borderTop:`1px solid ${c.border}`}}>
-                  <div style={{fontSize:15,fontWeight:700,marginBottom:10}}>{selDate} 예약 현황</div>
+                  <div style={{fontSize:15,fontWeight:700,marginBottom:10,display:"flex",alignItems:"center",gap:8}}>
+                    {selDate} 예약 현황
+                    {selDate<todayStr&&<span style={{fontSize:11,background:"#f3f4f6",color:c.sub,borderRadius:5,padding:"2px 8px",fontWeight:600}}>지난 날짜 · 조회만 가능</span>}
+                  </div>
                   {dateRes.length===0
                     ?<div style={{fontSize:14,color:c.light}}>예약 없음 — 사용 가능합니다</div>
                     :dateRes.map(r=>(
                       <div key={r.id} style={{background:c.chipBg,borderRadius:c.radiusSm,padding:"10px 14px",marginBottom:8,border:`1px solid ${c.primary}33`}}>
                         <div style={{fontSize:15,fontWeight:700,color:c.primary,marginBottom:4}}>{toAMPM(r.startTime)} – {toAMPM(r.endTime)}</div>
                         <div style={{fontSize:14,color:c.sub,lineHeight:1.7}}>{r.name}{r.team?` | ${r.team}`:""} | {r.purpose} | {r.phone}</div>
-                        <button onClick={()=>openCancelModal(r.id)} style={{marginTop:8,background:"none",border:`1px solid ${c.border}`,borderRadius:6,padding:"5px 12px",fontSize:13,cursor:"pointer",color:c.sub,fontFamily:"inherit"}}>취소 / 변경</button>
+                        {selDate>=todayStr&&<button onClick={()=>openCancelModal(r.id)} style={{marginTop:8,background:"none",border:`1px solid ${c.border}`,borderRadius:6,padding:"5px 12px",fontSize:13,cursor:"pointer",color:c.sub,fontFamily:"inherit"}}>취소 / 변경</button>}
                       </div>
                     ))
                   }
@@ -612,6 +621,12 @@ export default function App() {
               <div style={{fontSize:17,fontWeight:700,marginBottom:16}}>예약 정보 입력</div>
               {!selDate
                 ?<div style={{textAlign:"center",color:c.light,fontSize:15,padding:"30px 10px"}}>↑ 날짜를 먼저 선택해 주세요</div>
+                :selDate<todayStr
+                ?<div style={{textAlign:"center",padding:"30px 10px"}}>
+                  <div style={{fontSize:32,marginBottom:10}}>🔒</div>
+                  <div style={{fontSize:15,fontWeight:700,color:c.sub,marginBottom:6}}>지난 날짜입니다</div>
+                  <div style={{fontSize:13,color:c.light}}>과거 날짜는 예약 신청 및 수정·취소가 불가합니다</div>
+                </div>
                 :<div style={{display:"flex",flexDirection:"column",gap:14}}>
                   <div style={{fontSize:15,fontWeight:600,color:c.primary,background:c.chipBg,borderRadius:c.radiusSm,padding:"8px 12px"}}>{selDate}</div>
                   {isWorshipBlocked&&(
@@ -777,12 +792,14 @@ export default function App() {
                   <div style={{display:"flex",flexDirection:"column",gap:8}}>
                     {adminRes.map(r=>{
                       const sp=SPACES.find(s=>s.id===r.spaceId);
+                      const isPast = r.date < todayStr;
                       return(
-                        <div key={r.id} style={{border:`1.5px solid ${c.border}`,borderRadius:c.radiusSm,padding:"12px 14px",display:"grid",gridTemplateColumns:"1fr 1fr 1fr auto",gap:8,alignItems:"center"}}>
+                        <div key={r.id} style={{border:`1.5px solid ${isPast?c.border:c.border}`,borderRadius:c.radiusSm,padding:"12px 14px",display:"grid",gridTemplateColumns:"1fr 1fr 1fr auto",gap:8,alignItems:"center",opacity:isPast?0.7:1}}>
                           <div>
                             <div style={{fontSize:11,color:c.light,marginBottom:2}}>장소</div>
                             <div style={{fontSize:14,fontWeight:700,display:"flex",alignItems:"center",gap:4}}>{renderIcon(sp?.icon,16)} {sp?.name}</div>
                             {r.recurring&&<span style={{fontSize:10,background:c.goldBg,color:c.gold,borderRadius:4,padding:"1px 5px",display:"inline-block",marginTop:2,fontWeight:600}}>반복</span>}
+                            {isPast&&<span style={{fontSize:10,background:"#f3f4f6",color:c.sub,borderRadius:4,padding:"1px 5px",display:"inline-block",marginTop:2,fontWeight:600}}>지난 예약</span>}
                           </div>
                           <div>
                             <div style={{fontSize:11,color:c.light,marginBottom:2}}>일시</div>
@@ -796,7 +813,10 @@ export default function App() {
                             <div style={{fontSize:12,color:c.sub}}>{r.purpose}</div>
                             <div style={{fontSize:11,color:c.light}}>{r.phone}</div>
                           </div>
-                          <button onClick={()=>adminDelete(r.id)} style={{background:c.dangerBg,border:`1.5px solid ${c.danger}44`,color:c.danger,borderRadius:c.radiusSm,padding:"8px 11px",fontSize:13,cursor:"pointer",fontFamily:"inherit",fontWeight:700}}>삭제</button>
+                          {isPast
+                            ?<div style={{fontSize:11,color:c.sub,textAlign:"center",padding:"8px 6px",border:`1.5px solid ${c.border}`,borderRadius:c.radiusSm}}>🔒<br/>잠김</div>
+                            :<button onClick={()=>adminDelete(r.id)} style={{background:c.dangerBg,border:`1.5px solid ${c.danger}44`,color:c.danger,borderRadius:c.radiusSm,padding:"8px 11px",fontSize:13,cursor:"pointer",fontFamily:"inherit",fontWeight:700}}>삭제</button>
+                          }
                         </div>
                       );
                     })}
