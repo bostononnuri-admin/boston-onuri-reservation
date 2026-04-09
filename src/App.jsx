@@ -153,7 +153,9 @@ export default function App() {
     name:"", phone:"", team:"", purpose:"", note:""
   });
   const [recurDone,    setRecurDone]   = useState(false);
-  const [currentPin,   setCurrentPin]  = useState("4Federalst!");
+  const [recurError,   setRecurError]  = useState(false);
+  const [recurLoading, setRecurLoading]= useState(false);
+  const [currentPin,   setCurrentPin]  = useState(() => localStorage.getItem("adminPin") || "4Federalst!");
   const [showPwChange, setShowPwChange]= useState(false);
   const [pwForm,       setPwForm]      = useState({ cur:"", next:"", confirm:"" });
   const [pwMsg,        setPwMsg]       = useState(null);
@@ -264,13 +266,19 @@ export default function App() {
       }
       cur.setDate(cur.getDate() + 1);
     }
-    setRecurDone(true);
+    setRecurLoading(true);
+    setRecurError(false);
     const result = await gasRequest("addBatch", { reservations: rows });
-    // 서버에서 생성된 실제 ID 목록으로 교체
-    const finalRows = result.ids
-      ? rows.map((r, i) => ({ ...r, id: result.ids[i] || r.id }))
-      : rows;
-    setReservations(p => [...p, ...finalRows]);
+    setRecurLoading(false);
+    if (result.ok) {
+      const finalRows = result.ids
+        ? rows.map((r, i) => ({ ...r, id: result.ids[i] || r.id }))
+        : rows;
+      setReservations(p => [...p, ...finalRows]);
+      setRecurDone(true);
+    } else {
+      setRecurError(true);
+    }
   }
 
   function openCancelModal(resId) { setCancelModal({ resId, mode:"prompt" }); setCancelPw(""); setCancelError(""); }
@@ -360,11 +368,12 @@ export default function App() {
                         const dow = editForm.date ? localDate(editForm.date).getDay() : -1;
                         const sp  = editForm.spaceId;
                         const isOverlapAllowed = OVERLAP_ALLOWED.includes(sp);
-                        // 고정 차단 시간
-                        const blocked =
+                        // 고정 차단 시간 (중복예약 가능 공간은 예배 시간도 차단 안 함)
+                        const blocked = !isOverlapAllowed && (
                           (WORSHIP_BLOCKED_SPACES.includes(sp) && dow===0 && t>=WORSHIP_START && t<(sp===ACTS29_ID?ACTS29_END:sp===DREAMHALL_ID?DREAMHALL_END:WORSHIP_END)) ||
                           (sp===SAT_BLOCKED_SPACE && dow===6 && t>=SAT_START && t<SAT_END) ||
-                          (sp===WED_BLOCKED_SPACE && dow===3 && t>=WED_START && t<WED_END);
+                          (sp===WED_BLOCKED_SPACE && dow===3 && t>=WED_START && t<WED_END)
+                        );
                         return <option key={t} value={t} disabled={blocked}>{toAMPM(t)}{blocked?" ●":""}</option>;
                       })}
                     </select></div>
@@ -619,7 +628,7 @@ export default function App() {
                   {isSatBlocked&&(
                     <div style={{background:"#fff7ed",border:"1.5px solid #fb923c55",borderRadius:c.radiusSm,padding:"10px 14px",fontSize:13,color:"#c2410c"}}>
                       🎵 <strong>성인예배팀 찬양 연습</strong><br/>
-                      매주 주일 9:00 AM – 12:00 PM 은 이 공간을 예약할 수 없습니다. 양해 부탁드립니다!
+                      매주 토요일 9:00 AM – 12:00 PM 은 이 공간을 예약할 수 없습니다. 양해 부탁드립니다!
                     </div>
                   )}
                   {isWedBlocked&&(
@@ -739,14 +748,15 @@ export default function App() {
                       <div><div style={{fontSize:13,fontWeight:600,color:c.sub,marginBottom:5}}>연락처</div><input type="tel" placeholder="617-000-0000" value={recurForm.phone} onChange={e=>setRecurForm(f=>({...f,phone:e.target.value}))} style={IS}/></div>
                       <div style={{gridColumn:"1/-1"}}><div style={{fontSize:13,fontWeight:600,color:c.sub,marginBottom:5}}>예약 팀</div><input type="text" placeholder="예: 청년부" value={recurForm.team} onChange={e=>setRecurForm(f=>({...f,team:e.target.value}))} style={IS}/></div>
                       <div style={{gridColumn:"1/-1"}}><div style={{fontSize:13,fontWeight:600,color:c.sub,marginBottom:5}}>사용 목적 *</div><input type="text" placeholder="예: 주일예배" value={recurForm.purpose} onChange={e=>setRecurForm(f=>({...f,purpose:e.target.value}))} style={IS}/></div>
-                      <div style={{gridColumn:"1/-1"}}><button disabled={!recurForm.name||!recurForm.purpose||recurForm.startTime>=recurForm.endTime} onClick={handleRecurSubmit} style={{width:"100%",background:"#f59e0b",border:"none",borderRadius:c.radiusSm,padding:"13px",color:"#fff",fontSize:16,fontWeight:700,cursor:"pointer",fontFamily:"inherit",opacity:(!recurForm.name||!recurForm.purpose||recurForm.startTime>=recurForm.endTime)?0.4:1}}>반복 예약 일괄 등록</button></div>
+                      <div style={{gridColumn:"1/-1"}}><button disabled={!recurForm.name||!recurForm.purpose||recurForm.startTime>=recurForm.endTime||recurLoading} onClick={handleRecurSubmit} style={{width:"100%",background:"#f59e0b",border:"none",borderRadius:c.radiusSm,padding:"13px",color:"#fff",fontSize:16,fontWeight:700,cursor:"pointer",fontFamily:"inherit",opacity:(!recurForm.name||!recurForm.purpose||recurForm.startTime>=recurForm.endTime||recurLoading)?0.4:1}}>{recurLoading?"저장 중...":"반복 예약 일괄 등록"}</button></div>
+                      {recurError&&<div style={{gridColumn:"1/-1",fontSize:13,color:c.danger,background:c.dangerBg,borderRadius:c.radiusSm,padding:"10px 14px",textAlign:"center"}}>⚠️ 저장에 실패했습니다. 인터넷 연결을 확인하고 다시 시도해주세요.</div>}
                     </div>
                   )}
                   {showRecur&&recurDone&&(
                     <div style={{marginTop:18,textAlign:"center",padding:"16px 0"}}>
                       <div style={{fontSize:30,marginBottom:6}}>✅</div>
                       <div style={{fontSize:17,fontWeight:700,color:c.success,marginBottom:10}}>반복 예약이 등록되었습니다!</div>
-                      <button onClick={()=>{setRecurDone(false);setRecurForm({spaceId:1,startDate:todayStr,endDate:maxDateStr,recurType:"0",startTime:"09:00",endTime:"13:00",name:"",phone:"",team:"",purpose:"",note:""}); }} style={{background:"none",border:"1.5px solid #f59e0b",borderRadius:c.radiusSm,padding:"8px 20px",cursor:"pointer",fontSize:14,fontFamily:"inherit",color:"#f59e0b",fontWeight:600}}>새로 등록</button>
+                      <button onClick={()=>{setRecurDone(false);setRecurError(false);setRecurForm({spaceId:1,startDate:todayStr,endDate:maxDateStr,recurType:"0",startTime:"09:00",endTime:"13:00",name:"",phone:"",team:"",purpose:"",note:""}); }} style={{background:"none",border:"1.5px solid #f59e0b",borderRadius:c.radiusSm,padding:"8px 20px",cursor:"pointer",fontSize:14,fontFamily:"inherit",color:"#f59e0b",fontWeight:600}}>새로 등록</button>
                     </div>
                   )}
                 </div>
@@ -809,7 +819,7 @@ export default function App() {
                         if(pwForm.cur!==currentPin){setPwMsg({ok:false,text:"현재 비밀번호가 맞지 않습니다."});return;}
                         if(pwForm.next.length<4){setPwMsg({ok:false,text:"새 비밀번호는 4자 이상이어야 합니다."});return;}
                         if(pwForm.next!==pwForm.confirm){setPwMsg({ok:false,text:"새 비밀번호가 일치하지 않습니다."});return;}
-                        setCurrentPin(pwForm.next); setPwMsg({ok:true,text:"비밀번호가 변경되었습니다!"}); setPwForm({cur:"",next:"",confirm:""});
+                        setCurrentPin(pwForm.next); localStorage.setItem("adminPin", pwForm.next); setPwMsg({ok:true,text:"비밀번호가 변경되었습니다!"}); setPwForm({cur:"",next:"",confirm:""});
                       }} style={{background:c.primary,border:"none",borderRadius:c.radiusSm,padding:"12px",color:"#fff",fontSize:15,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>변경하기</button>
                     </div>
                   </div>
