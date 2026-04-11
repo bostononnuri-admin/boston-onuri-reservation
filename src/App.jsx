@@ -31,12 +31,12 @@ const WED_START = "19:00";
 const WED_END   = "22:00";
 const SPACES = [
   { id: 1,  name: "본당",            icon: "⛪"  },
-  { id: 2,  name: "샤이닝글로리",    icon: "☕"  },
   { id: 3,  name: "Acts29",          icon: "🤝🏻" },
   { id: 4,  name: "비전홀",          icon: "🎓"  },
+  { id: 6,  name: "기도실",          icon: "🙏🏻" },
   { id: 5,  name: "드림홀",          icon: "👧🏻👦🏻" },
   { id: 11, name: "드림홀-교사실",   icon: "👩🏻👨🏻" },
-  { id: 6,  name: "기도실",          icon: "🙏🏻" },
+  { id: 2,  name: "샤이닝글로리",    icon: "☕"  },
   { id: 7,  name: "두란노홀-Table1", icon: "img:/table-icon.png" },
   { id: 8,  name: "두란노홀-Table2", icon: "img:/table-icon.png" },
   { id: 9,  name: "주방",            icon: "🍳"  },
