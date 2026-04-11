@@ -178,6 +178,17 @@ export default function App() {
   const [cancelError, setCancelError] = useState("");
   const [editForm,    setEditForm]    = useState(null);
 
+  // 관리자 일회성 예약
+  const [showAdminBook,    setShowAdminBook]    = useState(false);
+  const [adminBookSpace,   setAdminBookSpace]   = useState(null);
+  const [adminBookDate,    setAdminBookDate]    = useState(null);
+  const [adminBookCalYear, setAdminBookCalYear] = useState(today.getFullYear());
+  const [adminBookCalMonth,setAdminBookCalMonth]= useState(today.getMonth());
+  const [adminBookForm,    setAdminBookForm]    = useState({ name:"", phone:"", team:"", purpose:"", startTime:"", endTime:"", note:"", password:"" });
+  const [adminBookDone,    setAdminBookDone]    = useState(false);
+  const [adminBookSync,    setAdminBookSync]    = useState(null);
+  const [adminBookLoading, setAdminBookLoading] = useState(false);
+
   useEffect(() => {
     if (!isGasReady) return;
     setLoading(true);
@@ -335,6 +346,54 @@ export default function App() {
     await gasRequest("edit", { id: updated.id, reservation: updated });
   }
   async function adminDelete(id) { setReservations(p => p.filter(r => r.id !== id)); await gasRequest("delete", { id }); }
+
+  // 관리자 일회성 예약 함수들
+  function prevAdminBookMonth() { if(adminBookCalMonth===0){setAdminBookCalYear(y=>y-1);setAdminBookCalMonth(11);}else setAdminBookCalMonth(m=>m-1); }
+  function nextAdminBookMonth() { if(adminBookCalMonth===11){setAdminBookCalYear(y=>y+1);setAdminBookCalMonth(0);}else setAdminBookCalMonth(m=>m+1); }
+
+  const adminBookSpaceRes = adminBookSpace ? reservations.filter(r => r.spaceId === adminBookSpace.id) : [];
+  const adminBookDateRes  = adminBookDate  ? adminBookSpaceRes.filter(r => r.date === adminBookDate) : [];
+
+  const adminBookIsWorshipDay     = adminBookDate && localDate(adminBookDate).getDay() === 0;
+  const adminBookIsWorshipBlocked = adminBookSpace && WORSHIP_BLOCKED_SPACES.includes(adminBookSpace.id) && adminBookIsWorshipDay;
+  const adminBookWorshipEnd       = adminBookSpace?.id === ACTS29_ID ? ACTS29_END : adminBookSpace?.id === DREAMHALL_ID ? DREAMHALL_END : WORSHIP_END;
+  const adminBookIsSatDay         = adminBookDate && localDate(adminBookDate).getDay() === 6;
+  const adminBookIsSatBlocked     = adminBookSpace && adminBookSpace.id === SAT_BLOCKED_SPACE && adminBookIsSatDay;
+  const adminBookIsWedDay         = adminBookDate && localDate(adminBookDate).getDay() === 3;
+  const adminBookIsWedBlocked     = adminBookSpace && adminBookSpace.id === WED_BLOCKED_SPACE && adminBookIsWedDay;
+
+  const adminBookOverlapsWorship = adminBookIsWorshipBlocked && adminBookForm.startTime && adminBookForm.endTime && adminBookForm.startTime < adminBookWorshipEnd && adminBookForm.endTime > WORSHIP_START;
+  const adminBookOverlapsSat     = adminBookIsSatBlocked && adminBookForm.startTime && adminBookForm.endTime && adminBookForm.startTime < SAT_END && adminBookForm.endTime > SAT_START;
+  const adminBookOverlapsWed     = adminBookIsWedBlocked && adminBookForm.startTime && adminBookForm.endTime && adminBookForm.startTime < WED_END && adminBookForm.endTime > WED_START;
+
+  const canAdminBookSubmit = adminBookForm.name && isPhoneValid(adminBookForm.phone) && adminBookForm.purpose &&
+    adminBookForm.startTime && adminBookForm.endTime && adminBookForm.startTime < adminBookForm.endTime &&
+    !adminBookOverlapsWorship && !adminBookOverlapsSat && !adminBookOverlapsWed;
+
+  async function handleAdminBookSubmit() {
+    if (!canAdminBookSubmit || !adminBookSpace || !adminBookDate) return;
+    const space = SPACES.find(s => s.id === adminBookSpace.id);
+    const tempId = genId();
+    const newRes = { id: tempId, spaceId: adminBookSpace.id, spaceName: space?.name||"", date: adminBookDate, ...adminBookForm, recurring: false };
+    setReservations(p => [...p, newRes]);
+    setAdminBookDone(true);
+    setAdminBookSync("saving");
+    setAdminBookLoading(true);
+    const result = await gasRequest("add", { reservation: newRes });
+    setAdminBookLoading(false);
+    if (result.ok) {
+      if (result.id) setReservations(p => p.map(r => r.id === tempId ? { ...r, id: result.id } : r));
+      setAdminBookSync("saved");
+    } else {
+      setAdminBookSync("error");
+    }
+  }
+
+  function resetAdminBook() {
+    setAdminBookSpace(null); setAdminBookDate(null);
+    setAdminBookForm({ name:"", phone:"", team:"", purpose:"", startTime:"", endTime:"", note:"", password:"" });
+    setAdminBookDone(false); setAdminBookSync(null);
+  }
 
   let adminRes = reservations;
   if (adminFilter !== "all") adminRes = adminRes.filter(r => r.spaceId === parseInt(adminFilter));
@@ -772,6 +831,162 @@ export default function App() {
               </div>
             ):(
               <div>
+                {/* 일회성 예약 */}
+                <div style={{background:"#f0fdf4",border:"1.5px solid #86efac55",borderRadius:c.radius,padding:20,marginBottom:20}}>
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+                    <div>
+                      <div style={{fontSize:16,fontWeight:700}}>일회성 예약 등록 <span style={{fontSize:11,background:"#16a34a",color:"#fff",borderRadius:5,padding:"2px 7px",marginLeft:6,fontWeight:600}}>관리자 전용</span></div>
+                      <div style={{fontSize:13,color:c.sub,marginTop:2}}>날짜 제한 없이 달력으로 직접 예약</div>
+                    </div>
+                    <button onClick={()=>{setShowAdminBook(v=>!v);resetAdminBook();}} style={{background:showAdminBook?"#fff":"#16a34a",border:"1.5px solid #16a34a",borderRadius:c.radiusSm,padding:"8px 16px",cursor:"pointer",fontSize:14,fontWeight:700,fontFamily:"inherit",color:showAdminBook?"#16a34a":"#fff"}}>{showAdminBook?"닫기":"예약하기"}</button>
+                  </div>
+                  {showAdminBook&&!adminBookDone&&(
+                    <div style={{marginTop:18}}>
+                      {!adminBookSpace?(
+                        <div>
+                          <div style={{fontSize:14,fontWeight:700,marginBottom:10,color:c.text}}>1단계 — 장소 선택</div>
+                          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(110px,1fr))",gap:8}}>
+                            {SPACES.map(sp=>(
+                              <div key={sp.id} onClick={()=>setAdminBookSpace(sp)}
+                                style={{background:"#fff",border:`1.5px solid ${c.border}`,borderRadius:c.radiusSm,padding:"10px 6px",cursor:"pointer",textAlign:"center",transition:"all .15s"}}
+                                onMouseEnter={e=>{e.currentTarget.style.borderColor="#16a34a";e.currentTarget.style.background="#f0fdf4";}}
+                                onMouseLeave={e=>{e.currentTarget.style.borderColor=c.border;e.currentTarget.style.background="#fff";}}>
+                                <div style={{marginBottom:3,display:"flex",justifyContent:"center",alignItems:"center",height:26}}>{renderIcon(sp.icon,22)}</div>
+                                <div style={{fontSize:12,fontWeight:700}}>{sp.name}</div>
+                                {OVERLAP_ALLOWED.includes(sp.id)&&<div style={{fontSize:9,color:"#16a34a",fontWeight:600}}>중복가능</div>}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ):(
+                        <div>
+                          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14,padding:"10px 14px",background:"#fff",borderRadius:c.radiusSm,border:"1.5px solid #86efac"}}>
+                            {renderIcon(adminBookSpace.icon,24)}
+                            <div style={{flex:1,fontWeight:700,fontSize:15}}>{adminBookSpace.name}</div>
+                            <button onClick={()=>{setAdminBookSpace(null);setAdminBookDate(null);setAdminBookForm({name:"",phone:"",team:"",purpose:"",startTime:"",endTime:"",note:"",password:""});}} style={{background:"none",border:`1px solid ${c.border}`,borderRadius:6,padding:"4px 10px",fontSize:12,cursor:"pointer",color:c.sub,fontFamily:"inherit"}}>변경</button>
+                          </div>
+                          {/* 달력 */}
+                          <div style={{background:"#fff",border:`1.5px solid ${c.border}`,borderRadius:c.radiusSm,padding:14,marginBottom:14}}>
+                            <div style={{fontSize:14,fontWeight:700,marginBottom:10,color:c.text}}>2단계 — 날짜 선택 <span style={{fontSize:11,color:"#16a34a",fontWeight:600}}>날짜 제한 없음</span></div>
+                            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+                              <button onClick={prevAdminBookMonth} style={{background:"none",border:"none",fontSize:24,cursor:"pointer",color:c.primary,padding:"0 8px"}}>‹</button>
+                              <span style={{fontSize:16,fontWeight:700}}>{adminBookCalYear}년 {MONTHS_KO[adminBookCalMonth]}</span>
+                              <button onClick={nextAdminBookMonth} style={{background:"none",border:"none",fontSize:24,cursor:"pointer",color:c.primary,padding:"0 8px"}}>›</button>
+                            </div>
+                            <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:2,marginBottom:4}}>
+                              {WEEK_KO.map((d,i)=><div key={d} style={{textAlign:"center",fontSize:11,fontWeight:700,padding:"2px 0",color:i===0?c.SUN:i===6?c.SAT:c.sub}}>{d}</div>)}
+                            </div>
+                            <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:2}}>
+                              {Array(new Date(adminBookCalYear,adminBookCalMonth,1).getDay()).fill(null).map((_,i)=><div key={i}/>)}
+                              {Array(new Date(adminBookCalYear,adminBookCalMonth+1,0).getDate()).fill(null).map((_,i)=>{
+                                const day=i+1, m=String(adminBookCalMonth+1).padStart(2,"0"), d=String(day).padStart(2,"0");
+                                const ds=`${adminBookCalYear}-${m}-${d}`;
+                                const dow=localDate(ds).getDay();
+                                const isSel=adminBookDate===ds, isToday=ds===todayStr, isPast=ds<todayStr;
+                                const abHol={...getHolidays(adminBookCalYear-1),...getHolidays(adminBookCalYear),...getHolidays(adminBookCalYear+1)};
+                                const resCount=adminBookSpaceRes.filter(r=>r.date===ds).length;
+                                return (
+                                  <button key={day} onClick={()=>setAdminBookDate(ds)} style={{
+                                    padding:"5px 2px 4px",borderRadius:6,lineHeight:1.2,
+                                    border:isSel?`2px solid ${c.primary}`:isToday?`2px solid ${c.gold}`:"2px solid transparent",
+                                    background:isSel?c.primary:"transparent",
+                                    color:isSel?"#fff":abHol[ds]||dow===0?c.SUN:dow===6?c.SAT:c.text,
+                                    fontSize:13,fontFamily:"inherit",cursor:"pointer",fontWeight:isToday?700:400,opacity:isPast?0.5:1,
+                                  }}>
+                                    <div>{day}</div>
+                                    {abHol[ds]&&<div style={{fontSize:6,color:isSel?"rgba(255,255,255,0.8)":c.SUN,overflow:"hidden",whiteSpace:"nowrap"}}>{abHol[ds]}</div>}
+                                    {resCount>0&&<div style={{fontSize:9,fontWeight:700,color:isSel?"#fff":c.primary,marginTop:1}}>{resCount}건</div>}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            {adminBookDate&&(
+                              <div style={{marginTop:12,paddingTop:10,borderTop:`1px solid ${c.border}`}}>
+                                <div style={{fontSize:13,fontWeight:700,marginBottom:6}}>{adminBookDate} 기존 예약</div>
+                                {adminBookDateRes.length===0
+                                  ?<div style={{fontSize:12,color:c.light}}>예약 없음</div>
+                                  :adminBookDateRes.map(r=>(
+                                    <div key={r.id} style={{fontSize:12,color:c.sub,padding:"4px 0",borderBottom:`1px solid ${c.border}55`}}>
+                                      {toAMPM(r.startTime)}–{toAMPM(r.endTime)} · {r.name}{r.team?` (${r.team})`:""} · {r.purpose}
+                                    </div>
+                                  ))
+                                }
+                              </div>
+                            )}
+                          </div>
+                          {/* 예약 폼 */}
+                          {adminBookDate&&(
+                            <div style={{background:"#fff",border:`1.5px solid ${c.border}`,borderRadius:c.radiusSm,padding:14}}>
+                              <div style={{fontSize:14,fontWeight:700,marginBottom:12,color:c.text}}>3단계 — 예약 정보 입력</div>
+                              <div style={{display:"flex",flexDirection:"column",gap:12}}>
+                                <div style={{fontSize:14,fontWeight:600,color:"#16a34a",background:"#f0fdf4",borderRadius:c.radiusSm,padding:"7px 12px"}}>{adminBookDate} · {adminBookSpace.name}</div>
+                                {adminBookIsWorshipBlocked&&<div style={{background:"#fff7ed",border:"1.5px solid #fb923c55",borderRadius:c.radiusSm,padding:"8px 12px",fontSize:12,color:"#c2410c"}}>⛪ 주일예배 시간({toAMPM(WORSHIP_START)}–{toAMPM(adminBookWorshipEnd)}) 예약 불가</div>}
+                                {adminBookIsSatBlocked&&<div style={{background:"#fff7ed",border:"1.5px solid #fb923c55",borderRadius:c.radiusSm,padding:"8px 12px",fontSize:12,color:"#c2410c"}}>🎵 찬양 연습 시간({toAMPM(SAT_START)}–{toAMPM(SAT_END)}) 예약 불가</div>}
+                                {adminBookIsWedBlocked&&<div style={{background:"#fff7ed",border:"1.5px solid #fb923c55",borderRadius:c.radiusSm,padding:"8px 12px",fontSize:12,color:"#c2410c"}}>🙏 수요예배 시간({toAMPM(WED_START)}–{toAMPM(WED_END)}) 예약 불가</div>}
+                                {[["name","신청자 이름","text","홍길동",true],["phone","연락처","tel","617-000-0000",true],["team","예약 팀","text","예: 청년부",false],["purpose","사용 목적","text","예: 소그룹 모임",true]].map(([k,lbl,t,ph,req])=>(
+                                  <div key={k}>
+                                    <div style={{fontSize:12,fontWeight:600,color:c.sub,marginBottom:4}}>{lbl}{req&&<span style={{color:c.danger}}> *</span>}</div>
+                                    <input type={t} placeholder={ph} value={adminBookForm[k]||""} onChange={e=>setAdminBookForm(f=>({...f,[k]:e.target.value}))} style={IS}/>
+                                  </div>
+                                ))}
+                                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+                                  {[["startTime","시작 시간"],["endTime","종료 시간"]].map(([k,lbl])=>(
+                                    <div key={k}>
+                                      <div style={{fontSize:12,fontWeight:600,color:c.sub,marginBottom:4}}>{lbl}<span style={{color:c.danger}}> *</span></div>
+                                      <select value={adminBookForm[k]} onChange={e=>setAdminBookForm(f=>({...f,[k]:e.target.value}))} style={{...IS,color:adminBookForm[k]?c.text:c.sub}}>
+                                        <option value="">선택</option>
+                                        {TIME_SLOTS.map(t=>{
+                                          const inWorship=adminBookIsWorshipBlocked&&t>=WORSHIP_START&&t<adminBookWorshipEnd;
+                                          const inSat=adminBookIsSatBlocked&&t>=SAT_START&&t<SAT_END;
+                                          const inWed=adminBookIsWedBlocked&&t>=WED_START&&t<WED_END;
+                                          const blocked=inWorship||inSat||inWed;
+                                          return <option key={t} value={t} disabled={blocked}>{toAMPM(t)}{blocked?" ●":""}</option>;
+                                        })}
+                                      </select>
+                                    </div>
+                                  ))}
+                                </div>
+                                {adminBookForm.startTime&&adminBookForm.endTime&&adminBookForm.startTime>=adminBookForm.endTime&&<div style={{fontSize:12,color:c.danger,background:c.dangerBg,borderRadius:c.radiusSm,padding:"6px 10px"}}>종료 시간은 시작 시간보다 늦어야 합니다</div>}
+                                {adminBookOverlapsWorship&&<div style={{fontSize:12,color:"#c2410c",background:"#fff7ed",borderRadius:c.radiusSm,padding:"6px 10px"}}>⛪ 주일예배 시간과 겹칩니다</div>}
+                                {adminBookOverlapsSat&&<div style={{fontSize:12,color:"#c2410c",background:"#fff7ed",borderRadius:c.radiusSm,padding:"6px 10px"}}>🎵 찬양 연습 시간과 겹칩니다</div>}
+                                {adminBookOverlapsWed&&<div style={{fontSize:12,color:"#c2410c",background:"#fff7ed",borderRadius:c.radiusSm,padding:"6px 10px"}}>🙏 수요예배 시간과 겹칩니다</div>}
+                                <div>
+                                  <div style={{fontSize:12,fontWeight:600,color:c.sub,marginBottom:4}}>예약 비밀번호 <span style={{fontWeight:400,color:"#9ca3af"}}>(선택 · 숫자 4자리)</span></div>
+                                  <input type="password" inputMode="numeric" maxLength={4} placeholder="미입력 시 비밀번호 없음" value={adminBookForm.password} onChange={e=>setAdminBookForm(f=>({...f,password:e.target.value.replace(/\D/g,"").slice(0,4)}))} style={IS}/>
+                                </div>
+                                <div>
+                                  <div style={{fontSize:12,fontWeight:600,color:c.sub,marginBottom:4}}>비고</div>
+                                  <textarea value={adminBookForm.note||""} onChange={e=>setAdminBookForm(f=>({...f,note:e.target.value}))} rows={2} style={{...IS,resize:"vertical"}}/>
+                                </div>
+                                <button onClick={handleAdminBookSubmit} disabled={!canAdminBookSubmit||adminBookLoading} style={{background:canAdminBookSubmit&&!adminBookLoading?"#16a34a":"#bbf7d0",border:"none",borderRadius:c.radiusSm,padding:"13px",color:"#fff",fontSize:15,fontWeight:700,cursor:canAdminBookSubmit&&!adminBookLoading?"pointer":"default",fontFamily:"inherit"}}>
+                                  {adminBookLoading?"저장 중...":"예약 등록하기"}
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {showAdminBook&&adminBookDone&&(
+                    <div style={{marginTop:18,textAlign:"center",padding:"16px 0"}}>
+                      <div style={{fontSize:30,marginBottom:6}}>✅</div>
+                      <div style={{fontSize:17,fontWeight:700,color:c.success,marginBottom:4}}>예약이 등록되었습니다!</div>
+                      <div style={{fontSize:14,color:c.sub,marginBottom:4}}>{adminBookSpace?.name} · {adminBookDate}</div>
+                      <div style={{fontSize:14,color:c.sub,marginBottom:12}}>{toAMPM(adminBookForm.startTime)} – {toAMPM(adminBookForm.endTime)}</div>
+                      <div style={{margin:"0 auto 14px",maxWidth:280,padding:"8px 14px",borderRadius:c.radiusSm,
+                        background:adminBookSync==="saved"?c.successBg:adminBookSync==="error"?c.dangerBg:"#f5f6ff",
+                        border:`1px solid ${adminBookSync==="saved"?"#bbf7d0":adminBookSync==="error"?"#fecaca":"#e0e7ff"}`,
+                        fontSize:13,color:adminBookSync==="saved"?c.success:adminBookSync==="error"?c.danger:c.sub}}>
+                        {adminBookSync==="saving"&&"📊 구글 시트에 저장 중..."}
+                        {adminBookSync==="saved" &&"✅ 구글 시트에 저장되었습니다"}
+                        {adminBookSync==="error" &&"⚠️ 시트 저장 실패"}
+                      </div>
+                      <button onClick={()=>resetAdminBook()} style={{background:"none",border:"1.5px solid #16a34a",borderRadius:c.radiusSm,padding:"8px 20px",cursor:"pointer",fontSize:14,fontFamily:"inherit",color:"#16a34a",fontWeight:600}}>새로 등록</button>
+                    </div>
+                  )}
+                </div>
+
                 {/* Recurring */}
                 <div style={{background:c.goldBg,border:"1.5px solid #f59e0b55",borderRadius:c.radius,padding:20,marginBottom:20}}>
                   <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
