@@ -10,11 +10,13 @@ const GAS_URL = "https://script.google.com/macros/s/AKfycbz21agW9jXczsPdeuBTnyB9
 const OVERLAP_ALLOWED = [9, 10];
 
 // 매주 일요일 예약 불가 공간 (주일예배)
-const WORSHIP_BLOCKED_SPACES = [1, 2, 3, 4, 5, 7, 8, 10];
+const WORSHIP_BLOCKED_SPACES = [1, 2, 3, 4, 5, 7, 8, 10, 11];
 const WORSHIP_START  = "08:00";
 const WORSHIP_END    = "13:00";
-const DREAMHALL_ID   = 5;
-const DREAMHALL_END  = "13:00";
+const DREAMHALL_ID          = 5;
+const DREAMHALL_END         = "13:00";
+const DREAMHALL_TEACHER_ID  = 11;
+const DREAMHALL_TEACHER_END = "13:00";
 const ACTS29_ID      = 3;
 const ACTS29_END     = "13:30";
 
@@ -32,7 +34,8 @@ const SPACES = [
   { id: 2,  name: "샤이닝글로리",    icon: "☕"  },
   { id: 3,  name: "Acts29",          icon: "🤝🏻" },
   { id: 4,  name: "비전홀",          icon: "🎓"  },
-  { id: 5,  name: "드림홀",          icon: "🧒🏻" },
+  { id: 5,  name: "드림홀",          icon: "👧🏻👦🏻" },
+  { id: 11, name: "드림홀-교사실",   icon: "👩🏻👨🏻" },
   { id: 6,  name: "기도실",          icon: "🙏🏻" },
   { id: 7,  name: "두란노홀-Table1", icon: "img:/table-icon.png" },
   { id: 8,  name: "두란노홀-Table2", icon: "img:/table-icon.png" },
@@ -158,7 +161,8 @@ export default function App() {
   const [showRecur,    setShowRecur]   = useState(false);
   const [recurForm,    setRecurForm]   = useState({
     spaceId:1, startDate:todayStr, endDate:maxDateStr,
-    recurType:"0", startTime:"09:00", endTime:"13:00",
+    recurFreq:"weekly", recurDow:0, recurNth:"1",
+    startTime:"09:00", endTime:"13:00",
     name:"", phone:"", team:"", purpose:"", note:""
   });
   const [recurDone,    setRecurDone]   = useState(false);
@@ -215,6 +219,7 @@ export default function App() {
   const isWorshipBlocked  = selSpace && WORSHIP_BLOCKED_SPACES.includes(selSpace.id) && isWorshipDay;
   const worshipEnd        = selSpace?.id === ACTS29_ID ? ACTS29_END
                           : selSpace?.id === DREAMHALL_ID ? DREAMHALL_END
+                          : selSpace?.id === DREAMHALL_TEACHER_ID ? DREAMHALL_TEACHER_END
                           : WORSHIP_END;
   const isTimeInWorship   = t => t >= WORSHIP_START && t < worshipEnd;
 
@@ -275,18 +280,22 @@ export default function App() {
   }
 
   async function handleRecurSubmit() {
-    const { spaceId, startDate, endDate, recurType, startTime, endTime, name, phone, team, purpose, note } = recurForm;
+    const { spaceId, startDate, endDate, recurFreq, recurDow, recurNth, startTime, endTime, name, phone, team, purpose, note } = recurForm;
     if (!name || !purpose || startTime >= endTime) return;
+
+    // 3개 필드에서 recurType 조합
+    const recurType = recurFreq === "daily" ? "daily"
+      : recurFreq === "weekly" ? String(recurDow)
+      : `monthly_${recurNth}_${recurDow}`;
+
     const space = SPACES.find(s => s.id === parseInt(spaceId));
     const rows = [];
     let cur = new Date(startDate + "T00:00:00");
     const end = new Date(endDate + "T00:00:00");
 
-    // 매월 N번째 요일 여부 판별 함수
     function isNthWeekday(date, nStr, wd) {
       if (date.getDay() !== wd) return false;
       if (nStr === "last") {
-        // 같은 요일이 다음 주에도 같은 달이면 마지막이 아님
         const nextWeek = new Date(date); nextWeek.setDate(date.getDate() + 7);
         return nextWeek.getMonth() !== date.getMonth();
       }
@@ -356,7 +365,7 @@ export default function App() {
 
   const adminBookIsWorshipDay     = adminBookDate && localDate(adminBookDate).getDay() === 0;
   const adminBookIsWorshipBlocked = adminBookSpace && WORSHIP_BLOCKED_SPACES.includes(adminBookSpace.id) && adminBookIsWorshipDay;
-  const adminBookWorshipEnd       = adminBookSpace?.id === ACTS29_ID ? ACTS29_END : adminBookSpace?.id === DREAMHALL_ID ? DREAMHALL_END : WORSHIP_END;
+  const adminBookWorshipEnd       = adminBookSpace?.id === ACTS29_ID ? ACTS29_END : adminBookSpace?.id === DREAMHALL_ID ? DREAMHALL_END : adminBookSpace?.id === DREAMHALL_TEACHER_ID ? DREAMHALL_TEACHER_END : WORSHIP_END;
   const adminBookIsSatDay         = adminBookDate && localDate(adminBookDate).getDay() === 6;
   const adminBookIsSatBlocked     = adminBookSpace && adminBookSpace.id === SAT_BLOCKED_SPACE && adminBookIsSatDay;
   const adminBookIsWedDay         = adminBookDate && localDate(adminBookDate).getDay() === 3;
@@ -460,7 +469,7 @@ export default function App() {
                         const isOverlapAllowed = OVERLAP_ALLOWED.includes(sp);
                         // 고정 차단 시간 (중복예약 가능 공간은 예배 시간도 차단 안 함)
                         const blocked = !isOverlapAllowed && (
-                          (WORSHIP_BLOCKED_SPACES.includes(sp) && dow===0 && t>=WORSHIP_START && t<(sp===ACTS29_ID?ACTS29_END:sp===DREAMHALL_ID?DREAMHALL_END:WORSHIP_END)) ||
+                          (WORSHIP_BLOCKED_SPACES.includes(sp) && dow===0 && t>=WORSHIP_START && t<(sp===ACTS29_ID?ACTS29_END:sp===DREAMHALL_ID?DREAMHALL_END:sp===DREAMHALL_TEACHER_ID?DREAMHALL_TEACHER_END:WORSHIP_END)) ||
                           (sp===SAT_BLOCKED_SPACE && dow===6 && t>=SAT_START && t<SAT_END) ||
                           (sp===WED_BLOCKED_SPACE && dow===3 && t>=WED_START && t<WED_END)
                         );
@@ -725,7 +734,9 @@ export default function App() {
                         ? "매주 주일 8:00 AM – 1:30 PM 은 이 공간을 예약할 수 없습니다. 양해 부탁드립니다!"
                         : selSpace?.id === DREAMHALL_ID
                           ? "매주 주일 8:00 AM – 1:00 PM 은 어린이부 예배가 있어 이 공간을 예약할 수 없습니다. 양해 부탁드립니다!"
-                          : "매주 주일 8:00 AM – 1:00 PM 은 이 공간을 예약할 수 없습니다. 양해 부탁드립니다!"
+                          : selSpace?.id === DREAMHALL_TEACHER_ID
+                            ? "매주 주일 8:00 AM – 1:00 PM 은 어린이부 예배가 있어 드림홀-교사실을 예약할 수 없습니다. 양해 부탁드립니다!"
+                            : "매주 주일 8:00 AM – 1:00 PM 은 이 공간을 예약할 수 없습니다. 양해 부탁드립니다!"
                       }
                     </div>
                   )}
@@ -999,14 +1010,61 @@ export default function App() {
                   {showRecur&&!recurDone&&(
                     <div style={{marginTop:18,display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
                       <div><div style={{fontSize:13,fontWeight:600,color:c.sub,marginBottom:5}}>장소 *</div><select value={recurForm.spaceId} onChange={e=>setRecurForm(f=>({...f,spaceId:e.target.value}))} style={IS}>{SPACES.map(sp=><option key={sp.id} value={sp.id}>{sp.icon.startsWith("img:")?"🍽️":sp.icon} {sp.name}</option>)}</select></div>
-                      <div><div style={{fontSize:13,fontWeight:600,color:c.sub,marginBottom:5}}>반복 주기 *</div><select value={recurForm.recurType} onChange={e=>setRecurForm(f=>({...f,recurType:e.target.value}))} style={IS}>
-                        <optgroup label="── 매일 / 매주 ──">
-                          {RECUR_DAYS_WEEKLY.map(r=><option key={r.value} value={r.value}>{r.label}</option>)}
-                        </optgroup>
-                        <optgroup label="── 매월 (요일 선택) ──">
-                          {RECUR_DAYS_MONTHLY.map(r=><option key={r.value} value={r.value}>{r.label}</option>)}
-                        </optgroup>
-                      </select></div>
+
+                      {/* 반복 주기 — 버튼 토글 */}
+                      <div style={{gridColumn:"1/-1"}}>
+                        <div style={{fontSize:13,fontWeight:600,color:c.sub,marginBottom:8}}>반복 주기 *</div>
+
+                        {/* 1단계: 매일 / 매주 / 매월 */}
+                        <div style={{marginBottom:8}}>
+                          <div style={{fontSize:11,color:c.sub,marginBottom:5}}>주기</div>
+                          <div style={{display:"flex",gap:6}}>
+                            {[["daily","매일"],["weekly","매주"],["monthly","매월"]].map(([v,lbl])=>(
+                              <button key={v} onClick={()=>setRecurForm(f=>({...f,recurFreq:v}))}
+                                style={{flex:1,padding:"9px 4px",borderRadius:c.radiusSm,border:`1.5px solid ${recurForm.recurFreq===v?c.primary:c.border}`,background:recurForm.recurFreq===v?c.primary:"#fff",color:recurForm.recurFreq===v?"#fff":c.text,fontSize:14,fontWeight:recurForm.recurFreq===v?700:400,cursor:"pointer",fontFamily:"inherit"}}>
+                                {lbl}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* 2단계: 요일 선택 (매주/매월일 때) */}
+                        {recurForm.recurFreq!=="daily"&&(
+                          <div style={{marginBottom:8}}>
+                            <div style={{fontSize:11,color:c.sub,marginBottom:5}}>요일</div>
+                            <div style={{display:"flex",gap:4}}>
+                              {["일","월","화","수","목","금","토"].map((d,i)=>(
+                                <button key={i} onClick={()=>setRecurForm(f=>({...f,recurDow:i}))}
+                                  style={{flex:1,padding:"9px 2px",borderRadius:c.radiusSm,border:`1.5px solid ${recurForm.recurDow===i?c.primary:c.border}`,background:recurForm.recurDow===i?c.primary:"#fff",color:recurForm.recurDow===i?"#fff":i===0?c.SUN:i===6?c.SAT:c.text,fontSize:13,fontWeight:recurForm.recurDow===i?700:400,cursor:"pointer",fontFamily:"inherit"}}>
+                                  {d}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* 3단계: 몇째주 (매월일 때) */}
+                        {recurForm.recurFreq==="monthly"&&(
+                          <div style={{marginBottom:4}}>
+                            <div style={{fontSize:11,color:c.sub,marginBottom:5}}>몇째 주</div>
+                            <div style={{display:"flex",gap:4}}>
+                              {[["1","첫째"],["2","둘째"],["3","셋째"],["4","넷째"],["last","마지막"]].map(([v,lbl])=>(
+                                <button key={v} onClick={()=>setRecurForm(f=>({...f,recurNth:v}))}
+                                  style={{flex:1,padding:"9px 2px",borderRadius:c.radiusSm,border:`1.5px solid ${recurForm.recurNth===v?c.primary:c.border}`,background:recurForm.recurNth===v?c.primary:"#fff",color:recurForm.recurNth===v?"#fff":c.text,fontSize:12,fontWeight:recurForm.recurNth===v?700:400,cursor:"pointer",fontFamily:"inherit"}}>
+                                  {lbl}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* 선택 결과 요약 */}
+                        <div style={{marginTop:8,fontSize:12,color:c.primary,fontWeight:600,background:c.chipBg,borderRadius:6,padding:"6px 10px",display:"inline-block"}}>
+                          {recurForm.recurFreq==="daily" && "📅 매일"}
+                          {recurForm.recurFreq==="weekly" && `📅 매주 ${["일요일","월요일","화요일","수요일","목요일","금요일","토요일"][recurForm.recurDow]}`}
+                          {recurForm.recurFreq==="monthly" && `📅 매월 ${{"1":"첫째","2":"둘째","3":"셋째","4":"넷째","last":"마지막"}[recurForm.recurNth]} ${["주일","월요일","화요일","수요일","목요일","금요일","토요일"][recurForm.recurDow]}`}
+                        </div>
+                      </div>
                       <div><div style={{fontSize:13,fontWeight:600,color:c.sub,marginBottom:5}}>시작 날짜 *</div><input type="date" value={recurForm.startDate} min={todayStr} onChange={e=>setRecurForm(f=>({...f,startDate:e.target.value}))} style={IS}/></div>
                       <div><div style={{fontSize:13,fontWeight:600,color:c.sub,marginBottom:5}}>종료 날짜 *</div><input type="date" value={recurForm.endDate} onChange={e=>setRecurForm(f=>({...f,endDate:e.target.value}))} style={IS}/></div>
                       <div><div style={{fontSize:13,fontWeight:600,color:c.sub,marginBottom:5}}>시작 시간 *</div><select value={recurForm.startTime} onChange={e=>setRecurForm(f=>({...f,startTime:e.target.value}))} style={IS}>{TIME_SLOTS.map(t=><option key={t} value={t}>{toAMPM(t)}</option>)}</select></div>
@@ -1023,7 +1081,7 @@ export default function App() {
                     <div style={{marginTop:18,textAlign:"center",padding:"16px 0"}}>
                       <div style={{fontSize:30,marginBottom:6}}>✅</div>
                       <div style={{fontSize:17,fontWeight:700,color:c.success,marginBottom:10}}>반복 예약이 등록되었습니다!</div>
-                      <button onClick={()=>{setRecurDone(false);setRecurError(false);setRecurForm({spaceId:1,startDate:todayStr,endDate:maxDateStr,recurType:"0",startTime:"09:00",endTime:"13:00",name:"",phone:"",team:"",purpose:"",note:""}); }} style={{background:"none",border:"1.5px solid #f59e0b",borderRadius:c.radiusSm,padding:"8px 20px",cursor:"pointer",fontSize:14,fontFamily:"inherit",color:"#f59e0b",fontWeight:600}}>새로 등록</button>
+                      <button onClick={()=>{setRecurDone(false);setRecurError(false);setRecurForm({spaceId:1,startDate:todayStr,endDate:maxDateStr,recurFreq:"weekly",recurDow:0,recurNth:"1",startTime:"09:00",endTime:"13:00",name:"",phone:"",team:"",purpose:"",note:""}); }} style={{background:"none",border:"1.5px solid #f59e0b",borderRadius:c.radiusSm,padding:"8px 20px",cursor:"pointer",fontSize:14,fontFamily:"inherit",color:"#f59e0b",fontWeight:600}}>새로 등록</button>
                     </div>
                   )}
                 </div>
