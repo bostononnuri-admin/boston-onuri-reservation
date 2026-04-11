@@ -16,7 +16,7 @@ const WORSHIP_END    = "13:00";
 const DREAMHALL_ID          = 5;
 const DREAMHALL_END         = "13:00";
 const DREAMHALL_TEACHER_ID  = 11;
-const DREAMHALL_TEACHER_END = "13:00";
+const DREAMHALL_TEACHER_END = "14:00";
 const ACTS29_ID      = 3;
 const ACTS29_END     = "13:30";
 
@@ -735,7 +735,7 @@ export default function App() {
                         : selSpace?.id === DREAMHALL_ID
                           ? "매주 주일 8:00 AM – 1:00 PM 은 어린이부 예배가 있어 이 공간을 예약할 수 없습니다. 양해 부탁드립니다!"
                           : selSpace?.id === DREAMHALL_TEACHER_ID
-                            ? "매주 주일 8:00 AM – 1:00 PM 은 어린이부 예배가 있어 드림홀-교사실을 예약할 수 없습니다. 양해 부탁드립니다!"
+                            ? "매주 주일 8:00 AM – 2:00 PM 은 어린이부 예배가 있어 드림홀-교사실을 예약할 수 없습니다. 양해 부탁드립니다!"
                             : "매주 주일 8:00 AM – 1:00 PM 은 이 공간을 예약할 수 없습니다. 양해 부탁드립니다!"
                       }
                     </div>
@@ -789,7 +789,7 @@ export default function App() {
                   </div>
                   {form.startTime&&form.endTime&&form.startTime>=form.endTime&&<div style={{fontSize:13,color:c.danger,background:c.dangerBg,borderRadius:c.radiusSm,padding:"8px 12px"}}>종료 시간은 시작 시간보다 늦어야 합니다</div>}
                   {overlapsWorship&&<div style={{fontSize:13,color:"#c2410c",background:"#fff7ed",borderRadius:c.radiusSm,padding:"8px 12px"}}>
-                    ⛪ 선택한 시간이 주일예배 시간(8:00 AM – {selSpace?.id===ACTS29_ID?"1:30 PM":"1:00 PM"})과 겹칩니다
+                    ⛪ 선택한 시간이 주일예배 시간(8:00 AM – {selSpace?.id===ACTS29_ID?"1:30 PM":selSpace?.id===DREAMHALL_TEACHER_ID?"2:00 PM":"1:00 PM"})과 겹칩니다
                   </div>}
                   {overlapsSat&&<div style={{fontSize:13,color:"#c2410c",background:"#fff7ed",borderRadius:c.radiusSm,padding:"8px 12px"}}>
                     🎵 선택한 시간이 찬양 연습 시간(9:00 AM – 12:00 PM)과 겹칩니다
